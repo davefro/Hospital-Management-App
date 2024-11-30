@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Custom style for TextInputLayout -->
+    <style name="CustomTextInputStyle" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        <item name="hintTextColor">@android:color/black</item>
+        <item name="android:textColor">@android:color/black</item>
+    </style>
+
+</resources>
