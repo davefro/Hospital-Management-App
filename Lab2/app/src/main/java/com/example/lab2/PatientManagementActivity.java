@@ -4,7 +4,6 @@ import android.database.Cursor;
 import android.os.Bundle;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -79,9 +78,9 @@ public class PatientManagementActivity extends AppCompatActivity {
             String[] parts = selectedItem.split(" - ");
             selectedPatientId = Integer.parseInt(parts[0]);
             String[] details = parts[1].split(", ");
-            etName.setText(details[0]); // Name
+            etName.setText(details[0]);
             etAge.setText(details[1].split(" ")[0]);
-            etGender.setText(details[2]); // Gender
+            etGender.setText(details[2]);
 
             btnAddOrUpdate.setText("Update Patient");
             btnDelete.setVisibility(View.VISIBLE);
@@ -113,15 +112,29 @@ public class PatientManagementActivity extends AppCompatActivity {
         String ageStr = etAge.getText().toString().trim();
         String gender = etGender.getText().toString().trim();
 
+        // Validate inputs
         if (name.isEmpty() || ageStr.isEmpty() || gender.isEmpty()) {
             Toast.makeText(this, "All fields are required", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        int age = Integer.parseInt(ageStr);
+        // Validate that age is a valid integer
+        int age;
+        try {
+            age = Integer.parseInt(ageStr);
+            if (age <= 0) {
+                Toast.makeText(this, "Age must be a positive number", Toast.LENGTH_SHORT).show();
+                return;
+            }
+        } catch (NumberFormatException e) {
+            Toast.makeText(this, "Invalid age. Please enter a numeric value", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Insert patient data into the database
         boolean success = dbHelper.insertPatient(name, age, gender);
         if (success) {
-            Toast.makeText(this, "Patient added", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Patient added successfully", Toast.LENGTH_SHORT).show();
             resetFields();
             loadPatients();
         } else {
@@ -134,21 +147,36 @@ public class PatientManagementActivity extends AppCompatActivity {
         String ageStr = etAge.getText().toString().trim();
         String gender = etGender.getText().toString().trim();
 
+        // Validate inputs
         if (name.isEmpty() || ageStr.isEmpty() || gender.isEmpty()) {
             Toast.makeText(this, "All fields are required", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        int age = Integer.parseInt(ageStr);
+        // Validate that age is a valid integer
+        int age;
+        try {
+            age = Integer.parseInt(ageStr);
+            if (age <= 0) {
+                Toast.makeText(this, "Age must be a positive number", Toast.LENGTH_SHORT).show();
+                return;
+            }
+        } catch (NumberFormatException e) {
+            Toast.makeText(this, "Invalid age. Please enter a numeric value", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Update patient data in the database
         boolean success = dbHelper.updatePatient(selectedPatientId, name, age, gender);
         if (success) {
-            Toast.makeText(this, "Patient updated", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Patient updated successfully", Toast.LENGTH_SHORT).show();
             resetFields();
             loadPatients();
         } else {
             Toast.makeText(this, "Failed to update patient", Toast.LENGTH_SHORT).show();
         }
     }
+
 
     private void deletePatient(int patientId) {
         boolean success = dbHelper.deletePatient(patientId);
@@ -187,5 +215,3 @@ public class PatientManagementActivity extends AppCompatActivity {
         selectedPatientId = -1;
     }
 }
-
-
