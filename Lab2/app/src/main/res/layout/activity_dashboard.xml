@@ -12,9 +12,10 @@
         android:id="@+id/titleHome"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Hospital Management"
+        android:text="Welcome to the Hospital Management System"
         android:textSize="28dp"
         android:textStyle="bold"
+        android:gravity="center"
         android:layout_centerHorizontal="true"
         android:layout_margin="10dp"/>
     
@@ -217,6 +218,7 @@
             app:cardUseCompatPadding="true">
 
             <LinearLayout
+                android:id="@+id/btn_logout"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_vertical|center_horizontal"

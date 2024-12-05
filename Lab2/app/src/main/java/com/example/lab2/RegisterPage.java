@@ -43,7 +43,7 @@ public class RegisterPage extends AppCompatActivity {
         emailInputLayout = findViewById(R.id.emailInputLayout);
         passwordInputLayout = findViewById(R.id.passwordInputLayout);
         cPasswordInputLayout = findViewById(R.id.cPasswordInputLayout);
-        DB = new DBHelper(this);
+        DB = DBHelper.getInstance(this);
 
         Log.d("RegisterPage", "onCreate: Views initialized.");
 

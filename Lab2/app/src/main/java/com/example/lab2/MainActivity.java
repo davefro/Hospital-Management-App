@@ -37,7 +37,7 @@ public class MainActivity extends AppCompatActivity {
         passwordInputLayout = findViewById(R.id.passwordInputLayout);
         signIn = findViewById(R.id.sign_in);
         signUp = findViewById(R.id.sign_up);
-        DB = new DBHelper(this);
+        DB =  DBHelper.getInstance(this);
 
         // Navigate to the RegisterPage
         signUp.setOnClickListener(new View.OnClickListener() {

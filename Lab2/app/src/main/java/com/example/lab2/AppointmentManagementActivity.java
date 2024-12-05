@@ -14,13 +14,17 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
+
 import java.util.ArrayList;
-import java.util.List;
+
 
 public class AppointmentManagementActivity extends AppCompatActivity {
 
     Spinner spinnerPatient, spinnerDoctor;
-    EditText etDate, etTime, etReason;
+    TextInputEditText etDate, etTime, etReason;
+    TextInputLayout tilDate, tilTime;
     Button btnAdd, btnUpdate, btnDelete;
     ListView lvAppointments;
     Toolbar toolbar;
@@ -36,11 +40,14 @@ public class AppointmentManagementActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_appointment_management);
 
+
         spinnerPatient = findViewById(R.id.spinner_patient);
         spinnerDoctor = findViewById(R.id.spinner_doctor);
         etDate = findViewById(R.id.et_date);
         etTime = findViewById(R.id.et_time);
         etReason = findViewById(R.id.et_reason);
+        tilDate = findViewById(R.id.til_date);
+        tilTime = findViewById(R.id.til_time);
         btnAdd = findViewById(R.id.btn_add);
         btnUpdate = findViewById(R.id.btn_update);
         btnDelete = findViewById(R.id.btn_delete);
@@ -48,7 +55,7 @@ public class AppointmentManagementActivity extends AppCompatActivity {
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        dbHelper = new DBHelper(this);
+        dbHelper = DBHelper.getInstance(this);
 
         patientList = new ArrayList<>();
         doctorList = new ArrayList<>();
@@ -121,6 +128,14 @@ public class AppointmentManagementActivity extends AppCompatActivity {
         int patientId = spinnerPatient.getSelectedItemPosition() + 1;
         int doctorId = spinnerDoctor.getSelectedItemPosition() + 1;
 
+        boolean isDateValid = validateDate(date);
+        boolean isTimeValid = validateTime(time);
+
+        if (!isDateValid || !isTimeValid) {
+            Toast.makeText(this, "Please correct the errors above.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         if (date.isEmpty() || time.isEmpty() || reason.isEmpty()) {
             Toast.makeText(this, "All fields are required", Toast.LENGTH_SHORT).show();
             return;
@@ -129,6 +144,13 @@ public class AppointmentManagementActivity extends AppCompatActivity {
         boolean success = dbHelper.insertAppointment(date, time, reason, patientId, doctorId);
         if (success) {
             Toast.makeText(this, "Appointment added", Toast.LENGTH_SHORT).show();
+            String doctorName = spinnerDoctor.getSelectedItem().toString();
+            String patientName = spinnerPatient.getSelectedItem().toString();
+            NotificationHelper.showNotification(
+                    this,
+                    "Appointment Booked",
+                    "Appointment with " + doctorName + " for " + patientName + " on " + date + " at " + time
+            );
             resetFields();
             loadAppointments();
         } else {
@@ -136,22 +158,29 @@ public class AppointmentManagementActivity extends AppCompatActivity {
         }
     }
 
-    private void updateAppointment() {
-        String date = etDate.getText().toString();
-        String time = etTime.getText().toString();
-        String reason = etReason.getText().toString();
-        int patientId = spinnerPatient.getSelectedItemPosition() + 1;
-        int doctorId = spinnerDoctor.getSelectedItemPosition() + 1;
-
-        boolean success = dbHelper.updateAppointment(selectedAppointmentId, date, time, reason, patientId, doctorId);
-        if (success) {
-            Toast.makeText(this, "Appointment updated", Toast.LENGTH_SHORT).show();
-            resetFields();
-            loadAppointments();
+    private boolean validateDate(String date) {
+        String datePattern = "^\\d{4}-\\d{2}-\\d{2}$";
+        if (!date.matches(datePattern)) {
+            tilDate.setError("Invalid date format. Use YYYY-MM-DD.");
+            return false;
         } else {
-            Toast.makeText(this, "Failed to update appointment", Toast.LENGTH_SHORT).show();
+            tilDate.setError(null);
+            return true;
         }
     }
+
+    private boolean validateTime(String time) {
+        String timePattern = "^\\d{2}:\\d{2}$";
+        if (!time.matches(timePattern)) {
+            tilTime.setError("Invalid time format. Use HH:MM.");
+            return false;
+        } else {
+            tilTime.setError(null);
+            return true;
+        }
+    }
+
+
 
     private void deleteAppointment(int appointmentId) {
         boolean success = dbHelper.deleteAppointment(appointmentId);
@@ -201,6 +230,26 @@ public class AppointmentManagementActivity extends AppCompatActivity {
         adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, appointmentList);
         lvAppointments.setAdapter(adapter);
     }
+
+
+
+    private void updateAppointment() {
+        String date = etDate.getText().toString();
+        String time = etTime.getText().toString();
+        String reason = etReason.getText().toString();
+        int patientId = spinnerPatient.getSelectedItemPosition() + 1;
+        int doctorId = spinnerDoctor.getSelectedItemPosition() + 1;
+
+        boolean success = dbHelper.updateAppointment(selectedAppointmentId, date, time, reason, patientId, doctorId);
+        if (success) {
+            Toast.makeText(this, "Appointment updated", Toast.LENGTH_SHORT).show();
+            resetFields();
+            loadAppointments();
+        } else {
+            Toast.makeText(this, "Failed to update appointment", Toast.LENGTH_SHORT).show();
+        }
+    }
+
 
     private int getSpinnerPosition(ArrayList<String> list, String value) {
         return list.indexOf(value);

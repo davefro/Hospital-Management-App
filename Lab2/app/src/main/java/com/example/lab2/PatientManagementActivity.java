@@ -42,7 +42,7 @@ public class PatientManagementActivity extends AppCompatActivity {
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        dbHelper = new DBHelper(this);
+        dbHelper =  DBHelper.getInstance(this);
         patientList = new ArrayList<>();
 
         loadPatients();

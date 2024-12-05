@@ -43,7 +43,7 @@ public class DoctorManagementActivity extends AppCompatActivity {
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        dbHelper = new DBHelper(this);
+        dbHelper = DBHelper.getInstance(this);
         doctorList = new ArrayList<>();
 
         loadDoctors();

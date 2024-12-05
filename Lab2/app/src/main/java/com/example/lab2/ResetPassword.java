@@ -40,7 +40,7 @@ public class ResetPassword extends AppCompatActivity {
         emailInputLayout = findViewById(R.id.emailInputLayout);
         password2InputLayout = findViewById(R.id.password2InputLayout);
         password3InputLayout = findViewById(R.id.password3InputLayout);
-        DB = new DBHelper(this);
+        DB = DBHelper.getInstance(this);
 
         // Confirm Button Click Listener
         confirm_btn.setOnClickListener(new View.OnClickListener() {

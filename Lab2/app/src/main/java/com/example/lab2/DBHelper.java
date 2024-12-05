@@ -12,6 +12,7 @@ import java.util.List;
 
 public class DBHelper extends SQLiteOpenHelper {
 
+
     // Database name
     private static final String DATABASE_NAME = "HospitalsDB.db";
 
@@ -47,8 +48,16 @@ public class DBHelper extends SQLiteOpenHelper {
     private static final String COL_APPOINTMENT_DOCTOR_ID = "doctor_id";
 
 
+    private static DBHelper instance;
 
-    public DBHelper(Context context) {
+    public static synchronized DBHelper getInstance(Context context) {
+        if (instance == null) {
+            instance = new DBHelper(context.getApplicationContext());
+        }
+        return instance;
+    }
+
+    private DBHelper(Context context) {
         super(context, DATABASE_NAME, null, 3);
     }
 
@@ -99,40 +108,44 @@ public class DBHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
+
     // Insert user data
     public boolean insertUserData(String email, String password) {
-        SQLiteDatabase db = this.getWritableDatabase();
-        ContentValues contentValues = new ContentValues();
-        contentValues.put(COL_EMAIL, email);
-        contentValues.put(COL_PASSWORD, password);
+        try (SQLiteDatabase db = this.getWritableDatabase()) {
+            ContentValues contentValues = new ContentValues();
+            String hashedPassword = PasswordEncryption.hashPassword(password);
+            contentValues.put(COL_EMAIL, email);
+            contentValues.put(COL_PASSWORD, hashedPassword);
 
-        long result = db.insert(TABLE_NAME, null, contentValues);
-        return result != -1;
+            long result = db.insert(TABLE_NAME, null, contentValues);
+            return result != -1;
+        }
     }
 
     // Check if email exists
     public boolean checkUserEmail(String email) {
-        SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT * FROM " + TABLE_NAME + " WHERE " + COL_EMAIL + " = ?", new String[]{email});
-        boolean exists = cursor.getCount() > 0;
-        cursor.close();
-        return exists;
+        try (SQLiteDatabase db = this.getReadableDatabase();
+             Cursor cursor = db.rawQuery("SELECT * FROM " + TABLE_NAME + " WHERE " + COL_EMAIL + " = ?", new String[]{email})) {
+            return cursor.getCount() > 0;
+        }
     }
 
     // Validate email and password
     public boolean checkUserPassword(String email, String password) {
-        SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT * FROM " + TABLE_NAME + " WHERE " + COL_EMAIL + " = ? AND " + COL_PASSWORD + " = ?", new String[]{email, password});
-        boolean valid = cursor.getCount() > 0;
-        cursor.close();
-        return valid;
+        try (SQLiteDatabase db = this.getReadableDatabase()) {
+            String hashedPassword = PasswordEncryption.hashPassword(password);
+            try (Cursor cursor = db.rawQuery("SELECT * FROM " + TABLE_NAME + " WHERE " + COL_EMAIL + " = ? AND " + COL_PASSWORD + " = ?", new String[]{email, hashedPassword})) {
+                return cursor.getCount() > 0;
+            }
+        }
     }
 
     // Reset user password
     public boolean resetUserPassword(String email, String newPassword) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues contentValues = new ContentValues();
-        contentValues.put(COL_PASSWORD, newPassword);
+        String hashedPassword = PasswordEncryption.hashPassword(newPassword);
+        contentValues.put(COL_PASSWORD, hashedPassword);
         int result = db.update(TABLE_NAME, contentValues, COL_EMAIL + " = ?", new String[]{email}); // Match by email
 
         if (result > 0) {
@@ -148,14 +161,15 @@ public class DBHelper extends SQLiteOpenHelper {
 
     // Insert patient
     public boolean insertPatient(String name, int age, String gender) {
-        SQLiteDatabase db = this.getWritableDatabase();
-        ContentValues values = new ContentValues();
-        values.put(COL_PATIENT_NAME, name);
-        values.put(COL_PATIENT_AGE, age);
-        values.put(COL_PATIENT_GENDER, gender);
+        try (SQLiteDatabase db = this.getWritableDatabase()) {
+            ContentValues values = new ContentValues();
+            values.put(COL_PATIENT_NAME, name);
+            values.put(COL_PATIENT_AGE, age);
+            values.put(COL_PATIENT_GENDER, gender);
 
-        long result = db.insert(TABLE_PATIENTS, null, values);
-        return result != -1;
+            long result = db.insert(TABLE_PATIENTS, null, values);
+            return result != -1;
+        }
     }
 
     // Get all patients
@@ -164,18 +178,17 @@ public class DBHelper extends SQLiteOpenHelper {
         return db.rawQuery("SELECT * FROM " + TABLE_PATIENTS, null);
     }
 
-    // Get all patient names
+    // Get all patients
     public List<String> getPatientNames() {
         List<String> patientNames = new ArrayList<>();
-        SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT " + COL_PATIENT_NAME + " FROM " + TABLE_PATIENTS, null);
-        if (cursor != null && cursor.moveToFirst()) {
-            do {
-                patientNames.add(cursor.getString(0)); // Get patient name
-            } while (cursor.moveToNext());
-            cursor.close();
+        try (SQLiteDatabase db = this.getReadableDatabase();
+             Cursor cursor = db.rawQuery("SELECT " + COL_PATIENT_NAME + " FROM " + TABLE_PATIENTS, null)) {
+            if (cursor.moveToFirst()) {
+                do {
+                    patientNames.add(cursor.getString(0));
+                } while (cursor.moveToNext());
+            }
         }
-
         if (patientNames.isEmpty()) {
             patientNames.add("No patients available");
         }
@@ -196,9 +209,9 @@ public class DBHelper extends SQLiteOpenHelper {
 
     // Delete patient
     public boolean deletePatient(int id) {
-        SQLiteDatabase db = this.getWritableDatabase();
-        int result = db.delete(TABLE_PATIENTS, COL_PATIENT_ID + " = ?", new String[]{String.valueOf(id)});
-        return result > 0;
+        try (SQLiteDatabase db = this.getWritableDatabase()) {
+            return db.delete(TABLE_PATIENTS, COL_PATIENT_ID + " = ?", new String[]{String.valueOf(id)}) > 0;
+        }
     }
 
     // Insert Doctor
@@ -267,6 +280,7 @@ public class DBHelper extends SQLiteOpenHelper {
         return result != -1;
     }
 
+
     // Get All Appointments
     public Cursor getAppointments() {
         SQLiteDatabase db = this.getReadableDatabase();
@@ -282,6 +296,8 @@ public class DBHelper extends SQLiteOpenHelper {
                 " JOIN " + TABLE_DOCTORS + " d ON a." + COL_APPOINTMENT_DOCTOR_ID + " = d." + COL_DOCTOR_ID, null);
     }
 
+
+
     // Update Appointment
     public boolean updateAppointment(int appointmentId, String date, String time, String reason, int patientId, int doctorId) {
         SQLiteDatabase db = this.getWritableDatabase();
@@ -295,6 +311,7 @@ public class DBHelper extends SQLiteOpenHelper {
         int rows = db.update(TABLE_APPOINTMENTS, values, COL_APPOINTMENT_ID + " = ?", new String[]{String.valueOf(appointmentId)});
         return rows > 0;
     }
+
 
     // Delete Appointment
     public boolean deleteAppointment(int appointmentId) {
