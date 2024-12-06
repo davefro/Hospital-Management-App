@@ -329,7 +329,7 @@ public class DBHelper extends SQLiteOpenHelper {
                 return false;
             }
         } catch (Exception e) {
-            // Log any exceptions that occur during the insertion process
+            // log any exceptions that occur during the insertion process
             Log.e("DBHelper", "Error inserting appointment: " + e.getMessage());
             return false;
         }
