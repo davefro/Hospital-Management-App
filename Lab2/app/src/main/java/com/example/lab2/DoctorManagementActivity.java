@@ -20,6 +20,7 @@ import java.util.ArrayList;
 public class DoctorManagementActivity extends AppCompatActivity {
 
 
+    // declare UI components and DB
     EditText etName, etSpeciality;
     Button btnAddOrUpdate, btnDelete;
     ListView lvDoctors;
@@ -35,6 +36,7 @@ public class DoctorManagementActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_doctor_management);
 
+        // Initialize UI components and DB
         etName = findViewById(R.id.et_doctor_name);
         etSpeciality = findViewById(R.id.et_doctor_speciality);
         btnAddOrUpdate = findViewById(R.id.btn_add_or_update);
@@ -54,6 +56,7 @@ public class DoctorManagementActivity extends AppCompatActivity {
             getSupportActionBar().setHomeAsUpIndicator(R.drawable.ic_back);
         }
 
+        // update and delete button
         btnAddOrUpdate.setOnClickListener(v -> {
             if (selectedDoctorId == -1) {
                 addDoctor();
@@ -62,6 +65,7 @@ public class DoctorManagementActivity extends AppCompatActivity {
             }
         });
 
+        // delete button
         btnDelete.setOnClickListener(v -> {
             if (selectedDoctorId == -1) {
                 Toast.makeText(this, "No doctor selected to delete", Toast.LENGTH_SHORT).show();
@@ -93,6 +97,7 @@ public class DoctorManagementActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    // add doctors
     private void addDoctor() {
         String name = etName.getText().toString().trim();
         String speciality = etSpeciality.getText().toString().trim();
@@ -112,6 +117,7 @@ public class DoctorManagementActivity extends AppCompatActivity {
         }
     }
 
+    // update doctors
     private void updateDoctor() {
         String name = etName.getText().toString().trim();
         String speciality = etSpeciality.getText().toString().trim();
@@ -120,7 +126,6 @@ public class DoctorManagementActivity extends AppCompatActivity {
             Toast.makeText(this, "All fields are required", Toast.LENGTH_SHORT).show();
             return;
         }
-
         boolean success = dbHelper.updateDoctor(selectedDoctorId, name, speciality);
         if (success) {
             Toast.makeText(this, "Doctor updated", Toast.LENGTH_SHORT).show();
@@ -131,6 +136,7 @@ public class DoctorManagementActivity extends AppCompatActivity {
         }
     }
 
+    // delete doctors
     private void deleteDoctor(int doctorId) {
         boolean success = dbHelper.deleteDoctor(doctorId);
         if (success) {
@@ -141,6 +147,7 @@ public class DoctorManagementActivity extends AppCompatActivity {
         }
     }
 
+    // load doctors
     private void loadDoctors() {
         doctorList.clear();
         Cursor cursor = dbHelper.getDoctors();
@@ -158,6 +165,7 @@ public class DoctorManagementActivity extends AppCompatActivity {
         lvDoctors.setAdapter(adapter);
     }
 
+    // reset all fields
     private void resetFields() {
         etName.setText("");
         etSpeciality.setText("");

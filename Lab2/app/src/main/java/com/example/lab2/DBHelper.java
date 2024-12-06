@@ -57,7 +57,7 @@ public class DBHelper extends SQLiteOpenHelper {
         return instance;
     }
 
-    private DBHelper(Context context) {
+    DBHelper(Context context) {
         super(context, DATABASE_NAME, null, 3);
     }
 
@@ -94,7 +94,8 @@ public class DBHelper extends SQLiteOpenHelper {
                 COL_APPOINTMENT_PATIENT_ID + " INTEGER, " +
                 COL_APPOINTMENT_DOCTOR_ID + " INTEGER, " +
                 "FOREIGN KEY (" + COL_APPOINTMENT_PATIENT_ID + ") REFERENCES " + TABLE_PATIENTS + " (" + COL_PATIENT_ID + "), " +
-                "FOREIGN KEY (" + COL_APPOINTMENT_DOCTOR_ID + ") REFERENCES " + TABLE_DOCTORS + " (" + COL_DOCTOR_ID + "))";
+                "FOREIGN KEY (" + COL_APPOINTMENT_DOCTOR_ID + ") REFERENCES " + TABLE_DOCTORS + " (" + COL_DOCTOR_ID + "), " +
+                "UNIQUE (" + COL_APPOINTMENT_DATE + ", " + COL_APPOINTMENT_TIME + ", " + COL_APPOINTMENT_PATIENT_ID + ", " + COL_APPOINTMENT_DOCTOR_ID + ") ON CONFLICT IGNORE)";
         db.execSQL(createAppointmentsTable);
     }
 
@@ -146,7 +147,7 @@ public class DBHelper extends SQLiteOpenHelper {
         ContentValues contentValues = new ContentValues();
         String hashedPassword = PasswordEncryption.hashPassword(newPassword);
         contentValues.put(COL_PASSWORD, hashedPassword);
-        int result = db.update(TABLE_NAME, contentValues, COL_EMAIL + " = ?", new String[]{email}); // Match by email
+        int result = db.update(TABLE_NAME, contentValues, COL_EMAIL + " = ?", new String[]{email});
 
         if (result > 0) {
             Log.d("DBHelper", "Password reset successfully for Email: " + email);
@@ -180,15 +181,20 @@ public class DBHelper extends SQLiteOpenHelper {
 
     // Get all patients
     public List<String> getPatientNames() {
+        // initialize an empty list to hold patient names
         List<String> patientNames = new ArrayList<>();
+        // open the database in read mode and execute the query to retrieve all patient names
         try (SQLiteDatabase db = this.getReadableDatabase();
              Cursor cursor = db.rawQuery("SELECT " + COL_PATIENT_NAME + " FROM " + TABLE_PATIENTS, null)) {
+            // check if the cursor has at least one row
             if (cursor.moveToFirst()) {
                 do {
+                    // retrieve the patient name from the current row and add it to the list
                     patientNames.add(cursor.getString(0));
                 } while (cursor.moveToNext());
             }
         }
+        // if no patient names were retrieved, add a default message to indicate no data is available
         if (patientNames.isEmpty()) {
             patientNames.add("No patients available");
         }
@@ -237,7 +243,7 @@ public class DBHelper extends SQLiteOpenHelper {
         Cursor cursor = db.rawQuery("SELECT " + COL_DOCTOR_NAME + " FROM " + TABLE_DOCTORS, null);
         if (cursor != null && cursor.moveToFirst()) {
             do {
-                String doctorName = "Dr. " + cursor.getString(0); // Add "Dr." prefix
+                String doctorName = "Dr. " + cursor.getString(0);
                 doctorNames.add(doctorName);
             } while (cursor.moveToNext());
             cursor.close();
@@ -266,21 +272,70 @@ public class DBHelper extends SQLiteOpenHelper {
         return rows > 0;
     }
 
-    // Insert Appointment
-    public boolean insertAppointment(String date, String time, String reason, int patientId, int doctorId) {
-        SQLiteDatabase db = this.getWritableDatabase();
-        ContentValues values = new ContentValues();
-        values.put(COL_APPOINTMENT_DATE, date);
-        values.put(COL_APPOINTMENT_TIME, time);
-        values.put(COL_APPOINTMENT_REASON, reason);
-        values.put(COL_APPOINTMENT_PATIENT_ID, patientId);
-        values.put(COL_APPOINTMENT_DOCTOR_ID, doctorId);
 
-        long result = db.insert(TABLE_APPOINTMENTS, null, values);
-        return result != -1;
+
+    // check for duplicated appointment
+    public boolean isDuplicateAppointment(String date, String time, int patientId, int doctorId) {
+        try (SQLiteDatabase db = this.getReadableDatabase();
+             Cursor cursor = db.rawQuery("SELECT * FROM " + TABLE_APPOINTMENTS +
+                             " WHERE " + COL_APPOINTMENT_DATE + " = ? AND " +
+                             COL_APPOINTMENT_TIME + " = ? AND " +
+                             COL_APPOINTMENT_PATIENT_ID + " = ? AND " +
+                             COL_APPOINTMENT_DOCTOR_ID + " = ?",
+                     new String[]{date, time, String.valueOf(patientId), String.valueOf(doctorId)})) {
+            return cursor.getCount() > 0; // Return true if a duplicate exists
+        }
     }
 
 
+
+    // insert appointments
+    public boolean insertAppointment(String date, String time, String reason, int patientId, int doctorId) {
+        try (SQLiteDatabase db = this.getWritableDatabase()) {
+            // Log the original reason before encryption for debugging purposes
+            Log.d("DBHelper", "Original Reason Before Encryption: " + reason);
+
+            ContentValues values = new ContentValues();
+            values.put(COL_APPOINTMENT_DATE, date);
+            values.put(COL_APPOINTMENT_TIME, time);
+
+            String encryptedReason;
+            // Check if the reason is already encrypted (valid Base64 string)
+            if (AESEncryptionHelper.isValidBase64(reason)) {
+                Log.w("DBHelper", "Reason is already encrypted: " + reason);
+                encryptedReason = reason;
+            } else {
+                // Encrypt the reason if it's not already encrypted
+                encryptedReason = AESEncryptionHelper.encrypt(reason);
+            }
+
+            // Log the encrypted reason for debugging
+            Log.d("DBHelper", "Encrypted Reason: " + encryptedReason);
+
+            // Add the encrypted reason and other details to the ContentValues object
+            values.put(COL_APPOINTMENT_REASON, encryptedReason);
+            values.put(COL_APPOINTMENT_PATIENT_ID, patientId);
+            values.put(COL_APPOINTMENT_DOCTOR_ID, doctorId);
+
+            // Insert the appointment data into the database
+            long result = db.insert(TABLE_APPOINTMENTS, null, values);
+
+            // Check the result of the insertion
+            if (result != -1) {
+                Log.d("DBHelper", "Appointment inserted successfully with ID: " + result);
+                return true;
+            } else {
+                Log.e("DBHelper", "Failed to insert appointment.");
+                return false;
+            }
+        } catch (Exception e) {
+            // Log any exceptions that occur during the insertion process
+            Log.e("DBHelper", "Error inserting appointment: " + e.getMessage());
+            return false;
+        }
+    }
+
+    
     // Get All Appointments
     public Cursor getAppointments() {
         SQLiteDatabase db = this.getReadableDatabase();
@@ -296,20 +351,46 @@ public class DBHelper extends SQLiteOpenHelper {
                 " JOIN " + TABLE_DOCTORS + " d ON a." + COL_APPOINTMENT_DOCTOR_ID + " = d." + COL_DOCTOR_ID, null);
     }
 
-
-
     // Update Appointment
     public boolean updateAppointment(int appointmentId, String date, String time, String reason, int patientId, int doctorId) {
-        SQLiteDatabase db = this.getWritableDatabase();
-        ContentValues values = new ContentValues();
-        values.put(COL_APPOINTMENT_DATE, date);
-        values.put(COL_APPOINTMENT_TIME, time);
-        values.put(COL_APPOINTMENT_REASON, reason);
-        values.put(COL_APPOINTMENT_PATIENT_ID, patientId);
-        values.put(COL_APPOINTMENT_DOCTOR_ID, doctorId);
+        try (SQLiteDatabase db = this.getWritableDatabase()) {
+            // create a ContentValues object to store the updated values
+            ContentValues values = new ContentValues();
+            values.put(COL_APPOINTMENT_DATE, date);
+            values.put(COL_APPOINTMENT_TIME, time);
+            // encrypt the reason before storing it in the database
+            String encryptedReason = AESEncryptionHelper.encrypt(reason);
+            values.put(COL_APPOINTMENT_REASON, encryptedReason);
+            values.put(COL_APPOINTMENT_PATIENT_ID, patientId);
+            values.put(COL_APPOINTMENT_DOCTOR_ID, doctorId);
 
-        int rows = db.update(TABLE_APPOINTMENTS, values, COL_APPOINTMENT_ID + " = ?", new String[]{String.valueOf(appointmentId)});
-        return rows > 0;
+            // execute the update query and check if any rows were affected
+            return db.update(TABLE_APPOINTMENTS, values, COL_APPOINTMENT_ID + " = ?", new String[]{String.valueOf(appointmentId)}) > 0;
+        } catch (Exception e) {
+            // log any exceptions that occur during update
+            Log.e("DBHelper", "Error updating appointment: " + e.getMessage());
+            return false;
+        }
+    }
+
+
+    // appointment's reason decryption
+    public String decryptReason(String encryptedReason) {
+        try {
+            if (encryptedReason == null || encryptedReason.isEmpty()) {
+                return "No reason provided";
+            }
+
+            // Use helper method to validate Base64
+            if (!AESEncryptionHelper.isValidBase64(encryptedReason)) {
+                return "Invalid reason format";
+            }
+
+            return AESEncryptionHelper.decrypt(encryptedReason);
+        } catch (Exception e) {
+            Log.e("DBHelper", "Error decrypting reason: " + e.getMessage());
+            return "Error decrypting reason";
+        }
     }
 
 

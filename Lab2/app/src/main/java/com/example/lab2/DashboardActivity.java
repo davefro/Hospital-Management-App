@@ -31,6 +31,7 @@ public class DashboardActivity extends AppCompatActivity {
             }
         }
 
+        // create a notification channel
         NotificationHelper.createNotificationChannel(this);
 
         LinearLayout btnLogout = findViewById(R.id.btn_logout);

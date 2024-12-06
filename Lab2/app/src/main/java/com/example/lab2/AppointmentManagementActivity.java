@@ -2,11 +2,11 @@ package com.example.lab2;
 
 import android.database.Cursor;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.Toast;
@@ -22,6 +22,7 @@ import java.util.ArrayList;
 
 public class AppointmentManagementActivity extends AppCompatActivity {
 
+    // declare UI components and DB
     Spinner spinnerPatient, spinnerDoctor;
     TextInputEditText etDate, etTime, etReason;
     TextInputLayout tilDate, tilTime;
@@ -41,6 +42,7 @@ public class AppointmentManagementActivity extends AppCompatActivity {
         setContentView(R.layout.activity_appointment_management);
 
 
+        // Initialize UI components and DB
         spinnerPatient = findViewById(R.id.spinner_patient);
         spinnerDoctor = findViewById(R.id.spinner_doctor);
         etDate = findViewById(R.id.et_date);
@@ -72,10 +74,10 @@ public class AppointmentManagementActivity extends AppCompatActivity {
         }
 
 
-        // Add Appointment
+        // add appointment button
         btnAdd.setOnClickListener(v -> addAppointment());
 
-        // Update Appointment
+        // update appointment button
         btnUpdate.setOnClickListener(v -> {
             if (selectedAppointmentId == -1) {
                 Toast.makeText(this, "No appointment selected", Toast.LENGTH_SHORT).show();
@@ -84,7 +86,7 @@ public class AppointmentManagementActivity extends AppCompatActivity {
             }
         });
 
-        // Delete Appointment
+        // delete appointment button
         btnDelete.setOnClickListener(v -> {
             if (selectedAppointmentId == -1) {
                 Toast.makeText(this, "No appointment selected", Toast.LENGTH_SHORT).show();
@@ -93,7 +95,7 @@ public class AppointmentManagementActivity extends AppCompatActivity {
             }
         });
 
-        // Handle item click to load appointment details for update
+        // handle item click to load appointment details for update
         lvAppointments.setOnItemClickListener((parent, view, position, id) -> {
             String selectedItem = appointmentList.get(position);
             String[] parts = selectedItem.split(" - ");
@@ -121,6 +123,7 @@ public class AppointmentManagementActivity extends AppCompatActivity {
     }
 
 
+    // add appointment
     private void addAppointment() {
         String date = etDate.getText().toString();
         String time = etTime.getText().toString();
@@ -131,6 +134,11 @@ public class AppointmentManagementActivity extends AppCompatActivity {
         boolean isDateValid = validateDate(date);
         boolean isTimeValid = validateTime(time);
 
+        if (dbHelper.isDuplicateAppointment(date, time, patientId, doctorId)) {
+            Toast.makeText(this, "Duplicate appointment. Please choose a different time or date.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         if (!isDateValid || !isTimeValid) {
             Toast.makeText(this, "Please correct the errors above.", Toast.LENGTH_SHORT).show();
             return;
@@ -140,24 +148,39 @@ public class AppointmentManagementActivity extends AppCompatActivity {
             Toast.makeText(this, "All fields are required", Toast.LENGTH_SHORT).show();
             return;
         }
+        try {
+            // encrypt the reason before saving it to the database
+            String encryptedReason = AESEncryptionHelper.encrypt(reason);
 
-        boolean success = dbHelper.insertAppointment(date, time, reason, patientId, doctorId);
-        if (success) {
-            Toast.makeText(this, "Appointment added", Toast.LENGTH_SHORT).show();
-            String doctorName = spinnerDoctor.getSelectedItem().toString();
-            String patientName = spinnerPatient.getSelectedItem().toString();
-            NotificationHelper.showNotification(
-                    this,
-                    "Appointment Booked",
-                    "Appointment with " + doctorName + " for " + patientName + " on " + date + " at " + time
-            );
-            resetFields();
-            loadAppointments();
-        } else {
-            Toast.makeText(this, "Failed to add appointment", Toast.LENGTH_SHORT).show();
+            // insert the appointment into the database
+            boolean success = dbHelper.insertAppointment(date, time, encryptedReason, patientId, doctorId);
+            if (success) {
+                Toast.makeText(this, "Appointment added", Toast.LENGTH_SHORT).show();
+
+                // prepare data for the notification
+                String doctorName = spinnerDoctor.getSelectedItem().toString();
+                String patientName = spinnerPatient.getSelectedItem().toString();
+
+                // trigger the notification
+                NotificationHelper.showNotification(
+                        this,
+                        "Appointment Booked",
+                        "Appointment with " + doctorName + " for " + patientName + " on " + date + " at " + time
+                );
+
+                // reset the fields and reload the appointments list
+                resetFields();
+                loadAppointments();
+            } else {
+                Toast.makeText(this, "Failed to add appointment", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Log.e("AppointmentManagement", "Error encrypting reason: " + e.getMessage());
+            Toast.makeText(this, "An error occurred while adding the appointment.", Toast.LENGTH_SHORT).show();
         }
     }
 
+    // date validation
     private boolean validateDate(String date) {
         String datePattern = "^\\d{4}-\\d{2}-\\d{2}$";
         if (!date.matches(datePattern)) {
@@ -169,6 +192,7 @@ public class AppointmentManagementActivity extends AppCompatActivity {
         }
     }
 
+    // time validation
     private boolean validateTime(String time) {
         String timePattern = "^\\d{2}:\\d{2}$";
         if (!time.matches(timePattern)) {
@@ -180,8 +204,7 @@ public class AppointmentManagementActivity extends AppCompatActivity {
         }
     }
 
-
-
+    // delete appointments
     private void deleteAppointment(int appointmentId) {
         boolean success = dbHelper.deleteAppointment(appointmentId);
         if (success) {
@@ -193,6 +216,7 @@ public class AppointmentManagementActivity extends AppCompatActivity {
         }
     }
 
+    // load patients
     private void loadPatients() {
         patientList.clear();
         patientList.addAll(dbHelper.getPatientNames());
@@ -202,6 +226,7 @@ public class AppointmentManagementActivity extends AppCompatActivity {
         spinnerPatient.setAdapter(patientAdapter);
     }
 
+    // load doctors
     private void loadDoctors() {
         doctorList.clear();
         doctorList.addAll(dbHelper.getDoctorNames());
@@ -211,6 +236,7 @@ public class AppointmentManagementActivity extends AppCompatActivity {
         spinnerDoctor.setAdapter(doctorAdapter);
     }
 
+    // load appointments from db
     private void loadAppointments() {
         appointmentList.clear();
         Cursor cursor = dbHelper.getAppointments();
@@ -219,9 +245,16 @@ public class AppointmentManagementActivity extends AppCompatActivity {
                 int id = cursor.getInt(0);
                 String date = cursor.getString(1);
                 String time = cursor.getString(2);
-                String reason = cursor.getString(3);
+
+                // Decrypt the reason
+                String encryptedReason = cursor.getString(3);
+                String reason = dbHelper.decryptReason(encryptedReason);
+
+                Log.d("LoadAppointments", "Encrypted: " + encryptedReason + " | Decrypted: " + reason);
+
                 String patient = cursor.getString(4);
                 String doctor = cursor.getString(5);
+
                 appointmentList.add(id + " - " + date + ", " + time + ", " + reason + ", " + patient + ", " + doctor);
             } while (cursor.moveToNext());
         }

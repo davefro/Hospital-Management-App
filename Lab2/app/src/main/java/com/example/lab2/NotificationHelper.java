@@ -12,10 +12,18 @@ import androidx.core.app.NotificationCompat;
 
 public class NotificationHelper {
 
+
+    // Constants for the notification channel
     private static final String CHANNEL_ID = "appointment_notifications";
     private static final String CHANNEL_NAME = "Appointment Notifications";
     private static final String CHANNEL_DESCRIPTION = "Notifications for booked appointments";
 
+    /**
+     * Creates a notification channel.
+     * Notification channels are required for devices running Android 8.0 (API level 26) or higher.
+     *
+     * @param context The application context used to create the notification channel.
+     */
     public static void createNotificationChannel(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
@@ -25,6 +33,7 @@ public class NotificationHelper {
             );
             channel.setDescription(CHANNEL_DESCRIPTION);
 
+            // Get the NotificationManager system service
             NotificationManager manager = context.getSystemService(NotificationManager.class);
             if (manager != null) {
                 manager.createNotificationChannel(channel);
@@ -32,6 +41,7 @@ public class NotificationHelper {
         }
     }
 
+    // shows notification with the given title and message
     public static void showNotification(Context context, String title, String message) {
         Log.d("NotificationDebug", "Notification triggered with title: " + title + ", message: " + message);
 
@@ -49,6 +59,7 @@ public class NotificationHelper {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
+        // Build the notification using NotificationCompat for backward compatibility
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(title)
